@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any, Dict
 
-from .agent import build_agent
+from build_agent.agent import build_agent
 
 
 def parse_args() -> argparse.Namespace:
