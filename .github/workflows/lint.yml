@@ -1,0 +1,29 @@
+name: Lint
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ruff-lint:
+    name: Ruff (non-blocking)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install lint dependencies
+        run: pip install ruff
+
+      - name: Run Ruff with suggestions only
+        run: ruff check . --exit-zero
