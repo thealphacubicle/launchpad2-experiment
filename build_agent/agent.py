@@ -61,7 +61,12 @@ def build_agent(model: str = "gpt-3.5-turbo", temperature: float = 0.2) -> Agent
 
     agent = create_tool_calling_agent(llm, tools, prompt)
 
-    return AgentExecutor(agent=agent, tools=tools, verbose=True)
+    return AgentExecutor(
+        agent=agent,
+        tools=tools,
+        verbose=True,
+        return_intermediate_steps=True,
+    )
 
 
 def run_agent(question: str) -> str:
