@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Tuple
 
 import streamlit as st
 
-from .agent import build_agent
+from build_agent.agent import build_agent
 
 st.set_page_config(page_title="LangChain Demo Agent", page_icon="🧭", layout="centered")
 st.title("🧭 Minimal Research Agent")

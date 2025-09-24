@@ -10,6 +10,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langchain.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
+import os
+from dotenv import load_dotenv
 
 
 @tool
@@ -29,7 +31,7 @@ def get_current_time(timezone: Optional[str] = None) -> str:
     return timestamp
 
 
-def build_agent(model: str = "gpt-3.5-turbo", temperature: float = 0.2) -> AgentExecutor:
+def build_agent(model: str = "gpt-3.5-turbo", temperature: float = 0.2, api_key = None) -> AgentExecutor:
     """Build an agent executor configured with web search and a clock tool.
 
     Args:
@@ -39,8 +41,9 @@ def build_agent(model: str = "gpt-3.5-turbo", temperature: float = 0.2) -> Agent
     Returns:
         A configured ``AgentExecutor`` ready to invoke with an ``input`` string.
     """
-
-    llm = ChatOpenAI(model=model, temperature=temperature)
+    load_dotenv()
+    api_key = api_key or os.getenv("OPENAI_API_KEY")
+    llm = ChatOpenAI(model=model, temperature=temperature, api_key=api_key)
 
     tools = [DuckDuckGoSearchRun(name="web_search"), get_current_time]
 

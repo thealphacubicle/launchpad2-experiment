@@ -44,7 +44,7 @@ python -m build_agent.cli_demo "What happened in tech news today?"
 Launch the UI locally:
 
 ```bash
-streamlit run build_agent/streamlit_app.py
+streamlit run build_agent/app.py
 ```
 
 Enter a question in the textbox and click **Run agent** to see the reasoning trace and the
