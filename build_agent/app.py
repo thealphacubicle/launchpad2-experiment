@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import uuid
+
 import streamlit as st
+import streamlit.components.v1 as components
 
 from build_agent.agent import ProcessMappingAgent
 
@@ -16,6 +19,34 @@ st.caption(
 @st.cache_resource(show_spinner=False)
 def get_process_agent() -> ProcessMappingAgent:
     return ProcessMappingAgent()
+
+
+# Render Mermaid diagram via embedded component so users see the graph rather than the source.
+def _render_mermaid_diagram(diagram_source: str) -> None:
+    element_id = f"mermaid-{uuid.uuid4().hex}"
+    mermaid_html = f"""
+    <div id="{element_id}" class="mermaid">{diagram_source}</div>
+    <script type="text/javascript">
+    const renderMermaid = () => {{
+        const el = document.getElementById('{element_id}');
+        if (!el) {{
+            return;
+        }}
+        mermaid.initialize({{ startOnLoad: false }});
+        mermaid.init(undefined, el);
+    }};
+    if (window.mermaid) {{
+        renderMermaid();
+    }} else {{
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+        script.onload = renderMermaid;
+        document.head.appendChild(script);
+    }}
+    </script>
+    """
+    components.html(mermaid_html, height=500, scrolling=True)
+
 
 
 def _render_process_tab(agent: ProcessMappingAgent) -> None:
@@ -55,7 +86,7 @@ def _render_process_tab(agent: ProcessMappingAgent) -> None:
         st.write(plan.summary)
 
         st.markdown("#### Process diagram")
-        st.markdown(f"```mermaid\n{plan.mermaid}\n```")
+        _render_mermaid_diagram(plan.mermaid)
 
         st.markdown("#### Key stages")
         for step in plan.steps:
