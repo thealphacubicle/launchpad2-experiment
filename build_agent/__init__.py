@@ -1,5 +1,25 @@
-"""Package exposing utilities for the LangChain agent demo."""
+"""Agent mini-framework used by the Streamlit showcase."""
 
-from .agent import build_agent, get_current_time, run_agent
+from .agent import (
+    DatasetMatch,
+    DowntimeOpportunity,
+    OpenDataPortalClient,
+    OpenDataPortalError,
+    ProcessMappingAgent,
+    ProcessPlan,
+    ProcessStep,
+    ResearchLaunchAgent,
+    ResearchReport,
+)
 
-__all__ = ["build_agent", "get_current_time", "run_agent"]
+__all__ = [
+    "ProcessMappingAgent",
+    "ProcessPlan",
+    "DowntimeOpportunity",
+    "ProcessStep",
+    "ResearchLaunchAgent",
+    "ResearchReport",
+    "DatasetMatch",
+    "OpenDataPortalClient",
+    "OpenDataPortalError",
+]

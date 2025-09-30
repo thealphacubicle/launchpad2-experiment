@@ -1,65 +1,61 @@
-# Build Agent Demo
+# Launchpad Agent Workbench
 
-This folder contains a minimal LangChain agent that combines a web search tool and a
-simple local utility (a clock) to answer user questions. The agent can be exercised
-from the command line or through a lightweight Streamlit user interface.
+This folder contains a self-contained mockup of an agentic system built for quick demos.
+Two specialised agents share a consistent Streamlit front end:
 
-## Features
+- **Process Mapping Agent** – turns a problem statement into a staged playbook and a Mermaid
+  diagram that can be pasted into documentation or whiteboarding tools.
+- **Research Launch Agent** – queries the NYC OpenData catalog live (with deterministic
+  fallbacks) and returns a narrative brief plus dataset recommendations keyed to the
+  initiative's constraints.
 
-- **One-step web search:** Uses the DuckDuckGo search API through LangChain's community
-tools to retrieve fresh information from the web.
-- **Local utility tool:** Provides the current local time so the agent can ground its
-responses with simple contextual data.
-- **Reusable agent factory:** A single helper builds the agent executor so both the CLI
-and UI demos stay in sync.
-- **Streamlit UI mockup:** A minimal front end that shows how the agent could be embedded
-in an application.
+No external LLM is required, but the research tab performs HTTPS calls to the OpenData
+portal. The app falls back to a small curated catalogue if the network is unavailable.
 
-## Requirements
+## Getting started
 
-Install the dependencies (preferably in a virtual environment):
+Create a virtual environment and install the dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-The agent uses OpenAI's API for language reasoning. Set your API key before running any
-of the demos:
+## Streamlit experience
 
-```bash
-export OPENAI_API_KEY="sk-..."
-```
-
-## Running the CLI demo
-
-The command line interface runs a single prompt and prints the agent's final answer and
-intermediate tool usage.
-
-```bash
-python -m build_agent.cli_demo "What happened in tech news today?"
-```
-
-## Running the Streamlit mock UI
-
-Launch the UI locally:
+Run the mock console locally:
 
 ```bash
 streamlit run build_agent/app.py
 ```
 
-Enter a question in the textbox and click **Run agent** to see the reasoning trace and the
-final response.
+- Use the *Process Mapping* tab to paste a problem statement, pick a detail level, and copy
+  the generated Mermaid diagram into your planning docs.
+- Switch to *Research Launch* to provide constraints (budget ceiling, scale) and gather a
+  synthesised launch brief with the top datasets to explore first. Live searches may take a
+  moment while the catalog request completes.
+
+## Command line helpers
+
+For a minimal CLI experience, invoke:
+
+```bash
+python -m build_agent.cli_demo process "Reduce onboarding time for support engineers"
+python -m build_agent.cli_demo research "Revive downtown retail foot traffic" --budget 200000 --scale City
+```
+
+The process command prints the diagram and supporting assumptions, while the research
+command surfaces the dataset picks and next-step checklist.
 
 ## Project layout
 
 ```
 build_agent/
-├── agent.py           # Reusable agent factory
-├── cli_demo.py        # Command line entry-point
-├── streamlit_app.py   # Streamlit mock UI
-├── requirements.txt   # Tooling and runtime dependencies
-└── README.md
+├── agent.py         # Deterministic agent logic (process mapping + research launch)
+├── app.py           # Streamlit UI with tabbed agents
+├── cli_demo.py      # Command line entry points mirroring the UI flows
+├── requirements.txt # Streamlit UI + requests for OpenData calls
+└── README.md        # You are here
 ```
 
-The code is intentionally small and heavily commented to illustrate how an agent, tools,
-and interfaces fit together.
+The process agent is entirely deterministic; the research agent layers deterministic
+scoring atop live NYC OpenData catalog results with a graceful offline fallback.
