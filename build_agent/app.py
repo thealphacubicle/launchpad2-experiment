@@ -87,38 +87,95 @@ def _render_process_tab(agent: ProcessMappingAgent) -> None:
 
         st.success("Draft process ready for review.")
 
-        st.markdown("#### Overview")
-        st.write(plan.summary)
-
         st.markdown("#### Process diagram")
         _render_mermaid_diagram(plan.mermaid)
 
-        st.markdown("#### Key stages")
-        for step in plan.steps:
-            st.markdown(
-                f"**{step.order}. {step.title}**\n"
-                f"- Focus: `{step.focus}`\n"
-                f"- Guiding question: {step.question}\n"
-                f"- Deliverable: {step.deliverable}"
-            )
+        overview_tab, stages_tab, assumptions_tab, risks_tab, downtime_tab = st.tabs(
+            [
+                "Overview",
+                "Key stages",
+                "Operating assumptions",
+                "Watch-outs",
+                "DOWNTIME opportunities",
+            ]
+        )
 
-        st.markdown("#### Operating assumptions")
-        for assumption in plan.assumptions:
-            st.markdown(f"- {assumption}")
-
-        st.markdown("#### Watch-outs")
-        for risk in plan.risks:
-            st.markdown(f"- {risk}")
-
-        if plan.downtime_opportunities:
-            st.markdown("#### DOWNTIME opportunities")
-            for opportunity in plan.downtime_opportunities:
-                st.markdown(
-                    f"**{opportunity.category}** - {opportunity.definition}\n"
-                    f"{opportunity.recommendation}"
+        with overview_tab:
+            st.markdown("**Process summary**")
+            st.write(plan.summary)
+            if plan.keywords:
+                st.caption(
+                    "Frequent themes: "
+                    + ", ".join(f"`{keyword}`" for keyword in plan.keywords)
                 )
-                if opportunity.trigger:
-                    st.caption(f"Signal spotted: {opportunity.trigger}")
+
+        with stages_tab:
+            st.write("Open a stage to review the focus, guiding question, and deliverable.")
+            for step in plan.steps:
+                with st.expander(f"{step.order}. {step.title}", expanded=step.order == 1):
+                    st.markdown(
+                        f"- Focus: `{step.focus}`\n"
+                        f"- Guiding question: {step.question}\n"
+                        f"- Deliverable: {step.deliverable}"
+                    )
+
+        with assumptions_tab:
+            if plan.assumptions:
+                for assumption in plan.assumptions:
+                    st.markdown(f"- {assumption}")
+            else:
+                st.info("No assumptions captured for this draft.")
+
+        with risks_tab:
+            if plan.risks:
+                for risk in plan.risks:
+                    st.markdown(f"- {risk}")
+            else:
+                st.info("No watch-outs flagged yet—pressure test the process with your team.")
+
+        with downtime_tab:
+            if plan.downtime_opportunities:
+                downtime_letters = [
+                    ("D", "Defects"),
+                    ("O", "Overproduction"),
+                    ("W", "Waiting"),
+                    ("N", "Non-utilized talent"),
+                    ("T", "Transportation"),
+                    ("I", "Inventory"),
+                    ("M", "Motion"),
+                    ("E", "Excess processing"),
+                ]
+                grouped_opportunities = {letter: [] for letter, _ in downtime_letters}
+                for opportunity in plan.downtime_opportunities:
+                    matched = False
+                    for letter, category_name in downtime_letters:
+                        if opportunity.category.lower().startswith(category_name.lower()):
+                            grouped_opportunities[letter].append(opportunity)
+                            matched = True
+                            break
+                    if not matched:
+                        key = opportunity.category[:1].upper()
+                        grouped_opportunities.setdefault(key, []).append(opportunity)
+
+                letter_tabs = st.tabs(
+                    [f"{letter} – {category}" for letter, category in downtime_letters]
+                )
+                for letter_tab, (letter, category_name) in zip(letter_tabs, downtime_letters):
+                    with letter_tab:
+                        opportunities = grouped_opportunities.get(letter, [])
+                        if opportunities:
+                            for opportunity in opportunities:
+                                st.markdown(
+                                    f"**{opportunity.category}**\n"
+                                    f"{opportunity.definition}"
+                                )
+                                st.write(opportunity.recommendation)
+                                if opportunity.trigger:
+                                    st.caption(f"Signal spotted: {opportunity.trigger}")
+                        else:
+                            st.write("No opportunities tagged for this category yet.")
+            else:
+                st.info("The agent did not spot DOWNTIME opportunities in this draft.")
 
 
 process_agent = get_process_agent()
