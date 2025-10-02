@@ -108,6 +108,10 @@ def _render_process_tab(agent: ProcessMappingAgent) -> None:
                     "Frequent themes: "
                     + ", ".join(f"`{keyword}`" for keyword in plan.keywords)
                 )
+            if plan.follow_up_questions:
+                st.markdown("**Clarifying questions**")
+                for question in plan.follow_up_questions:
+                    st.markdown(f"- {question}")
 
         with stages_tab:
             st.write("Open a stage to review the focus, guiding question, and deliverable.")
@@ -167,11 +171,10 @@ def _render_process_tab(agent: ProcessMappingAgent) -> None:
                             for opportunity in opportunities:
                                 st.markdown(
                                     f"**{opportunity.category}**\n"
-                                    f"{opportunity.definition}"
+                                    f"- *Reasoning:* {opportunity.insight}\n"
+                                    f"- *Why it matters:* {opportunity.definition}\n"
+                                    f"- *Next move:* {opportunity.recommendation}"
                                 )
-                                st.write(opportunity.recommendation)
-                                if opportunity.trigger:
-                                    st.caption(f"Signal spotted: {opportunity.trigger}")
                         else:
                             st.write("No opportunities tagged for this category yet.")
             else:

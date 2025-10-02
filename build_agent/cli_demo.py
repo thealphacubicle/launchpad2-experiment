@@ -20,6 +20,10 @@ def _handle_process(args: argparse.Namespace) -> None:
     print("\n=== Process Overview ===")
     print(plan.summary)
 
+    if plan.follow_up_questions:
+        print("\nClarifying questions:")
+        _print_lines(f"- {question}" for question in plan.follow_up_questions)
+
     print("\nMermaid diagram (paste into a Mermaid renderer):\n")
     print(plan.mermaid)
 
@@ -28,6 +32,15 @@ def _handle_process(args: argparse.Namespace) -> None:
 
     print("\nRisks:")
     _print_lines(f"- {risk}" for risk in plan.risks)
+
+    if plan.downtime_opportunities:
+        print("\nDOWNTIME opportunities:")
+        for opportunity in plan.downtime_opportunities:
+            print(f"- {opportunity.category}: {opportunity.insight}")
+            print(f"  Why it matters: {opportunity.definition}")
+            print(f"  Next move: {opportunity.recommendation}")
+            if opportunity.trigger:
+                print(f"  Signal: {opportunity.trigger}")
 
 
 def _handle_research(args: argparse.Namespace) -> None:

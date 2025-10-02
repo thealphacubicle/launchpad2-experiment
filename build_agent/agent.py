@@ -6,13 +6,15 @@ import html
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 import itertools
-import math
 import re
 from collections import Counter
 from urllib.parse import urlparse
 
 import requests
 from requests import RequestException
+
+from .agents import ContextGetterAgent, DrawerAgent, ReasoningAgent
+from .llm_client import LLMClient, LLMError
 
 
 _STOPWORDS = {
@@ -103,13 +105,6 @@ def _extract_keywords(text: str, *, limit: int = 12) -> List[str]:
     return [word for word, _ in counts.most_common(limit)]
 
 
-def _escape_mermaid(value: str) -> str:
-    """Escape characters that conflict with Mermaid labels."""
-
-    cleaned = value.replace("\n", " ").replace("\"", "'")
-    return re.sub(r"\s+", " ", cleaned).strip()
-
-
 @dataclass
 class ProcessStep:
     order: int
@@ -125,6 +120,7 @@ class DowntimeOpportunity:
     definition: str
     trigger: Optional[str]
     recommendation: str
+    insight: str
 
 
 @dataclass
@@ -136,368 +132,72 @@ class ProcessPlan:
     risks: List[str]
     keywords: List[str]
     downtime_opportunities: List[DowntimeOpportunity]
+    follow_up_questions: List[str]
 
 
 class ProcessMappingAgent:
-    """Deterministic agent that drafts process diagrams from a problem statement."""
+    """LLM-backed orchestrator that drafts process artefacts."""
 
-    _fallback_templates: Sequence[Dict[str, str]] = (
-        {
-            "title": "Frame the challenge",
-            "question": "Which stakeholders own {focus}?",
-            "deliverable": "Problem brief that states desired outcomes and guardrails.",
-        },
-        {
-            "title": "Map the current journey",
-            "question": "What happens today when {focus} is addressed?",
-            "deliverable": "Swimlane of the current process with latency hotspots highlighted.",
-        },
-        {
-            "title": "Surface constraints",
-            "question": "Which constraints or policies limit progress on {focus}?",
-            "deliverable": "Constraint backlog prioritised by impact and confidence.",
-        },
-        {
-            "title": "Generate solution paths",
-            "question": "Which solution themes could move {focus} forward?",
-            "deliverable": "Option matrix comparing feasibility, impact, and lift.",
-        },
-        {
-            "title": "Prototype & test",
-            "question": "How will we de-risk the top idea for {focus}?",
-            "deliverable": "Rapid experiment charter with success metrics.",
-        },
-        {
-            "title": "Plan rollout",
-            "question": "What does adoption of the {focus} solution require?",
-            "deliverable": "Rollout checklist with communications, training, and measurement.",
-        },
-    )
-
-    _level_to_count: Dict[str, int] = {"compact": 4, "balanced": 5, "deep": 6}
-
-    _step_questions: Tuple[str, ...] = (
-        "What triggers this stage for {focus}, and who validates readiness?",
-        "What information must be captured before handing off {focus}?",
-        "How do we detect quality issues while {focus} is in motion?",
-        "Who resolves blockers when {focus} stalls at this point?",
-        "What metrics signal that work on {focus} can progress?",
-        "How do we capture lessons from {focus} before closing the loop?",
-    )
-
-    _step_deliverables: Tuple[str, ...] = (
-        "Clear intake checklist documented for {step}.",
-        "Owners and collaborators aligned on {step} expectations.",
-        "Quality controls defined for the {step} activity.",
-        "Visible handoff criteria agreed for {step}.",
-        "Instrumentation or KPIs established for {step}.",
-        "Retrospective notes captured from {step}.",
-    )
-
-    _downtime_catalog: Tuple[Dict[str, object], ...] = (
-        {
-            "category": "Defects",
-            "definition": "Rework or corrections caused by errors in outputs.",
-            "keywords": ("defect", "error", "rework", "bug", "complaint", "return", "fail"),
-            "recommendation": "Set explicit acceptance criteria or add automated checks for '{step}' to limit defects.",
-            "fallback": "Add quality gates for {focus} to prevent defects and rework.",
-        },
-        {
-            "category": "Overproduction",
-            "definition": "Producing more than is needed or earlier than required.",
-            "keywords": ("duplicate", "copy", "redundant", "extra", "batch", "over", "ahead"),
-            "recommendation": "Right-size batch sizes or approvals around '{step}' so work aligns with actual demand.",
-            "fallback": "Review where {focus} creates outputs that exceed downstream demand.",
-        },
-        {
-            "category": "Waiting",
-            "definition": "Idle time when people or systems wait for the next action.",
-            "keywords": ("wait", "delay", "pending", "queue", "idle", "hold", "bottleneck"),
-            "recommendation": "Expose queue length or SLA alerts for '{step}' to shorten waiting time.",
-            "fallback": "Map bottlenecks so {focus} does not stall between stages.",
-        },
-        {
-            "category": "Non-utilized talent",
-            "definition": "Skills and knowledge not leveraged during the process.",
-            "keywords": ("handoff", "manual", "approval", "review", "sign-off", "escalate", "specialist"),
-            "recommendation": "Invite front-line insights into '{step}' to unlock latent expertise.",
-            "fallback": "Check whether roles aligned to {focus} can contribute earlier or more fully.",
-        },
-        {
-            "category": "Transportation",
-            "definition": "Unnecessary movement of work, data, or materials.",
-            "keywords": ("transfer", "move", "ship", "send", "transport", "handoff", "deliver"),
-            "recommendation": "Consolidate handoffs or systems touched during '{step}' to cut transport waste.",
-            "fallback": "Trace how {focus} moves between tools or teams to eliminate hops.",
-        },
-        {
-            "category": "Inventory",
-            "definition": "Work piling up without being processed.",
-            "keywords": ("backlog", "queue", "stack", "accumulate", "pending", "pile", "cache"),
-            "recommendation": "Limit work-in-progress around '{step}' to keep inventory lean.",
-            "fallback": "Surface WIP limits for stages of {focus} so stock does not accumulate.",
-        },
-        {
-            "category": "Motion",
-            "definition": "Extra movement of people or tools beyond what is required.",
-            "keywords": ("search", "lookup", "switch", "toggle", "walk", "navigate", "reopen"),
-            "recommendation": "Streamline tooling for '{step}' to minimise motion and context switching.",
-            "fallback": "Observe where {focus} forces people to switch tools or locations.",
-        },
-        {
-            "category": "Excess processing",
-            "definition": "Doing more work or complexity than customers need.",
-            "keywords": ("complex", "custom", "over", "polish", "refine", "approval", "sign-off"),
-            "recommendation": "Simplify criteria around '{step}' so the process meets expectations without over-processing.",
-            "fallback": "Check if {focus} includes reviews or documentation that could be trimmed.",
-        },
-    )
+    def __init__(
+        self,
+        *,
+        model: str = "gpt-4o-mini",
+        temperature: float = 0.2,
+        llm_client: Optional[LLMClient] = None,
+    ) -> None:
+        self._llm = llm_client or LLMClient(model=model, temperature=temperature)
+        self._context_agent = ContextGetterAgent(self._llm)
+        self._drawer_agent = DrawerAgent(self._llm)
+        self._reasoning_agent = ReasoningAgent(self._llm)
 
     def map_process(self, problem_statement: str, *, detail_level: str = "balanced") -> ProcessPlan:
         statement = problem_statement.strip()
         if not statement:
             raise ValueError("A problem statement is required to map the process.")
 
-        keywords = _extract_keywords(statement)
-        focus = keywords[0] if keywords else "the process"
-        target_steps = self._level_to_count.get(detail_level.lower(), 5)
+        try:
+            context_output = self._context_agent.generate_questions(statement)
+            drawer_output = self._drawer_agent.draw(statement, detail_level=detail_level)
+            reasoning_output = self._reasoning_agent.analyse(statement)
+        except LLMError as exc:  # pragma: no cover - propagates provider failures
+            raise RuntimeError(f"LLM workflow failed: {exc}") from exc
 
-        raw_actions = self._extract_actions(statement)
-        action_view = self._limit_actions(raw_actions, target_steps)
+        ordered_stages = sorted(drawer_output.stages, key=lambda stage: stage.order)
 
-        if action_view:
-            steps = self._build_steps_from_actions(action_view, focus)
-        else:
-            steps = self._build_template_steps(focus, keywords, target_steps)
-            action_view = [step.title for step in steps]
+        steps = [
+            ProcessStep(
+                order=stage.order,
+                title=stage.title,
+                focus=stage.focus,
+                question=stage.question,
+                deliverable=stage.deliverable,
+            )
+            for stage in ordered_stages
+        ]
 
-        mermaid = self._to_mermaid(steps)
-        assumptions = self._draft_assumptions(focus, keywords, steps)
-        risks = self._draft_risks(focus, keywords, steps)
-        downtime = self._downtime_opportunities(focus, action_view, steps)
-        summary = self._summarise(statement, focus, steps)
+        downtime = [
+            DowntimeOpportunity(
+                category=opportunity.category,
+                definition=opportunity.definition,
+                trigger=opportunity.trigger,
+                recommendation=opportunity.recommendation,
+                insight=opportunity.insight,
+            )
+            for opportunity in reasoning_output.opportunities
+        ]
 
         return ProcessPlan(
-            summary=summary,
+            summary=drawer_output.summary,
             steps=steps,
-            mermaid=mermaid,
-            assumptions=assumptions,
-            risks=risks,
-            keywords=keywords,
+            mermaid=drawer_output.mermaid,
+            assumptions=drawer_output.assumptions,
+            risks=drawer_output.risks,
+            keywords=drawer_output.keywords,
             downtime_opportunities=downtime,
+            follow_up_questions=context_output.questions,
         )
 
-    def _extract_actions(self, statement: str) -> List[str]:
-        pattern = re.compile(
-            r"(?:->|=>|\u2192|\u2794|\u279E|\u279C|\u27A1|\u27F6|,?\s*(?:and\s+)?then\b|,?\s*next\b|,?\s*after(?: that|wards)?\b|,?\s*subsequently\b|,?\s*finally\b|;)",
-            flags=re.IGNORECASE,
-        )
-        actions: List[str] = []
-        for raw_line in statement.replace("\r", "\n").split("\n"):
-            line = raw_line.strip()
-            if not line:
-                continue
-            line = line.lstrip("-*\u2022 0123456789).")
-            line = line.strip()
-            if not line:
-                continue
-            normalized = pattern.sub(" | ", line)
-            segments = re.split(r"[.|!?]|\|", normalized)
-            for segment in segments:
-                candidate = segment.strip(" \t-\u2022")
-                if len(candidate) < 3:
-                    continue
-                actions.append(candidate)
-
-        deduped: List[str] = []
-        seen: set[str] = set()
-        for action in actions:
-            key = action.lower()
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(action)
-        return deduped
-
-    def _limit_actions(self, actions: Sequence[str], step_count: int) -> List[str]:
-        if not actions:
-            return []
-        if step_count <= 0 or len(actions) <= step_count:
-            return list(actions)
-
-        limited: List[str] = []
-        total = len(actions)
-        for idx in range(step_count):
-            start = math.floor(idx * total / step_count)
-            end = math.floor((idx + 1) * total / step_count)
-            chunk = [item for item in actions[start:end] if item]
-            if chunk:
-                limited.append(" -> ".join(chunk))
-        return limited
-
-    def _build_steps_from_actions(self, actions: Sequence[str], focus: str) -> List[ProcessStep]:
-        steps: List[ProcessStep] = []
-        default_focus = focus
-        for idx, action in enumerate(actions, start=1):
-            title = self._format_step_title(action)
-            action_keywords = _extract_keywords(title)
-            focus_word = action_keywords[0] if action_keywords else default_focus
-            question_template = self._step_questions[(idx - 1) % len(self._step_questions)]
-            deliverable_template = self._step_deliverables[(idx - 1) % len(self._step_deliverables)]
-            steps.append(
-                ProcessStep(
-                    order=idx,
-                    title=title,
-                    focus=focus_word,
-                    question=question_template.format(step=title.lower(), focus=focus_word),
-                    deliverable=deliverable_template.format(step=title, focus=focus_word),
-                )
-            )
-        return steps
-
-    def _build_template_steps(
-        self,
-        focus: str,
-        keywords: Sequence[str],
-        step_count: int,
-    ) -> List[ProcessStep]:
-        steps: List[ProcessStep] = []
-        templates = list(itertools.islice(self._fallback_templates, step_count))
-        for idx, template in enumerate(templates, start=1):
-            focus_word = keywords[idx - 1] if idx - 1 < len(keywords) else focus
-            steps.append(
-                ProcessStep(
-                    order=idx,
-                    title=template["title"].format(focus=focus_word.title()),
-                    focus=focus_word,
-                    question=template["question"].format(focus=focus_word),
-                    deliverable=template["deliverable"],
-                )
-            )
-        return steps
-
-    def _format_step_title(self, action: str) -> str:
-        cleaned = action.strip().strip(".")
-        cleaned = re.sub(r"\s+", " ", cleaned)
-        if len(cleaned) > 96:
-            cleaned = cleaned[:93].rstrip(",; ") + "..."
-        if not cleaned:
-            return "Unnamed step"
-        return cleaned[0].upper() + cleaned[1:]
-
-    def _summarise(self, statement: str, focus: str, steps: Sequence[ProcessStep]) -> str:
-        headline = statement.splitlines()[0].strip().rstrip(".")
-        opening = steps[0].title if steps else focus
-        closing = steps[-1].title if steps else focus
-        opening_fragment = self._to_sentence_fragment(opening)
-        closing_fragment = self._to_sentence_fragment(closing)
-        if headline:
-            if len(headline) > 180:
-                headline = headline[:177].rstrip(",; ") + "..."
-            return (
-                f"{headline}. The mapped flow begins with {opening_fragment} and wraps with {closing_fragment}."
-            )
-        return (
-            f"A {len(steps)}-stage outline for how {focus} currently runs, from {opening_fragment} to {closing_fragment}."
-        )
-
-    def _to_sentence_fragment(self, value: str) -> str:
-        fragment = value.strip().rstrip(".")
-        if not fragment:
-            return "the process starting point"
-        return fragment[0].lower() + fragment[1:]
-
-    def _draft_assumptions(
-        self,
-        focus: str,
-        keywords: Sequence[str],
-        steps: Sequence[ProcessStep],
-    ) -> List[str]:
-        secondary = keywords[1] if len(keywords) > 1 else focus
-        opening = steps[0].title if steps else focus
-        closing = steps[-1].title if steps else focus
-        return [
-            f"Current-state documentation for '{opening}' through '{closing}' is accessible to the team.",
-            f"Subject-matter experts on {secondary} can validate the mapped responsibilities.",
-        ]
-
-    def _draft_risks(
-        self,
-        focus: str,
-        keywords: Sequence[str],
-        steps: Sequence[ProcessStep],
-    ) -> List[str]:
-        anchor = keywords[2] if len(keywords) > 2 else focus
-        closing = steps[-1].title if steps else focus
-        pinch_point = steps[len(steps) // 2].title if steps else focus
-        return [
-            f"Hidden variations around '{pinch_point}' could invalidate the mapped flow.",
-            f"Limited instrumentation near '{closing}' makes it difficult to prove improvements for {anchor}.",
-        ]
-
-    def _downtime_opportunities(
-        self,
-        focus: str,
-        actions: Sequence[str],
-        steps: Sequence[ProcessStep],
-    ) -> List[DowntimeOpportunity]:
-        if not actions:
-            actions = [step.title for step in steps]
-        if not actions:
-            actions = [focus]
-
-        focus_anchor = focus or "the process"
-        lower_actions = [action.lower() for action in actions]
-
-        opportunities: List[DowntimeOpportunity] = []
-        for entry in self._downtime_catalog:
-            category = str(entry["category"])
-            definition = str(entry["definition"])
-            keywords = tuple(entry.get("keywords", ()))
-            recommendation_template = str(entry["recommendation"])
-            fallback_template = str(entry["fallback"])
-
-            trigger: Optional[str] = None
-            recommendation = fallback_template.format(focus=focus_anchor)
-
-            for action, action_lower in zip(actions, lower_actions):
-                if any(keyword in action_lower for keyword in keywords):
-                    trigger = action.strip()
-                    recommendation = recommendation_template.format(
-                        focus=focus_anchor,
-                        step=trigger,
-                    )
-                    break
-
-            opportunities.append(
-                DowntimeOpportunity(
-                    category=category,
-                    definition=definition,
-                    trigger=trigger,
-                    recommendation=recommendation,
-                )
-            )
-
-        return opportunities
-
-    def _to_mermaid(self, steps: Sequence[ProcessStep]) -> str:
-        lines = ["flowchart TD", "    START([\"Kickoff\"])" ]
-        for step in steps:
-            node_id = f"S{step.order}"
-            label_title = _escape_mermaid(f"{step.order}. {step.title}")
-            label_sub = _escape_mermaid(step.deliverable)
-            lines.append(f"    {node_id}[\"{label_title}<br/>{label_sub}\"]")
-        lines.append("    END([\"Validated plan\"])")
-
-        if steps:
-            lines.append("    START --> S1")
-            for idx in range(1, len(steps)):
-                lines.append(f"    S{idx} --> S{idx + 1}")
-            lines.append(f"    S{steps[-1].order} --> END")
-        else:
-            lines.append("    START --> END")
-
-        return "\n".join(lines)
+    # Legacy helper methods retained below were removed when the agent became LLM-driven.
 
 
 def _clean_portal_text(value: Optional[str]) -> str:

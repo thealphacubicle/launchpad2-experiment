@@ -3,14 +3,17 @@
 This folder contains a self-contained mockup of an agentic system built for quick demos.
 Two specialised agents share a consistent Streamlit front end:
 
-- **Process Mapping Agent** – turns a problem statement into a staged playbook and a Mermaid
-  diagram that can be pasted into documentation or whiteboarding tools.
+- **Process Mapping Agent** – orchestrates multiple LLM-powered workers to turn a problem
+  statement into clarifying questions, a staged playbook, and a Mermaid diagram that can be
+  pasted into documentation or whiteboarding tools.
 - **Research Launch Agent** – queries the NYC OpenData catalog live (with deterministic
   fallbacks) and returns a narrative brief plus dataset recommendations keyed to the
   initiative's constraints.
 
-No external LLM is required, but the research tab performs HTTPS calls to the OpenData
-portal. The app falls back to a small curated catalogue if the network is unavailable.
+The process mapper now relies on an OpenAI-compatible LLM. Set `OPENAI_API_KEY` and install
+the `openai` Python package (listed in `requirements.txt`). The research tab still performs
+HTTPS calls to the OpenData portal and falls back to a small curated catalogue if the
+network is unavailable.
 
 ## Getting started
 
@@ -50,12 +53,15 @@ command surfaces the dataset picks and next-step checklist.
 
 ```
 build_agent/
-├── agent.py         # Deterministic agent logic (process mapping + research launch)
+├── agent.py         # LLM-backed process mapper + research launch helpers
+├── agents/          # Context getter, drawer, and reasoning LLM workers
 ├── app.py           # Streamlit UI with tabbed agents
 ├── cli_demo.py      # Command line entry points mirroring the UI flows
-├── requirements.txt # Streamlit UI + requests for OpenData calls
+├── llm_client.py    # Lightweight OpenAI chat wrapper + JSON extraction helper
+├── requirements.txt # Streamlit UI + requests + OpenAI client
 └── README.md        # You are here
 ```
 
-The process agent is entirely deterministic; the research agent layers deterministic
-scoring atop live NYC OpenData catalog results with a graceful offline fallback.
+The process agent now orchestrates three LLM-guided workers (context getter, drawer, and
+reasoning) while the research agent layers deterministic scoring atop live NYC OpenData
+catalog results with a graceful offline fallback.
