@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import sys
 import uuid
+from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from build_agent.agent import ProcessMappingAgent
 
