@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any, Dict
 
-from build_agent.agent import build_agent
+from build_agent.agents.master import build_master_agent
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,7 +30,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    agent = build_agent(model=args.model, temperature=args.temperature)
+    agent = build_master_agent(model=args.model, temperature=args.temperature)
     result: Dict[str, Any] = agent.invoke({"input": args.question})
 
     print("\n=== Final answer ===")
