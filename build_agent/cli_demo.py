@@ -16,8 +16,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="gpt-3.5-turbo",
-        help="The OpenAI chat model to use (defaults to gpt-3.5-turbo).",
+        default="gpt-4o-mini",
+        help="The OpenAI chat model to use (defaults to gpt-4o-mini).",
     )
     parser.add_argument(
         "--temperature",

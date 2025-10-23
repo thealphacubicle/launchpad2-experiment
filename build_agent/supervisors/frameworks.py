@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain.agents import AgentExecutor
+from langchain.agents import create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langchain.tools import tool
@@ -31,7 +32,7 @@ SYSTEM = (
 
 
 def build_frameworks_supervisor(
-    model: str = "gpt-3.5-turbo",
+    model: str = "gpt-4o-mini",
     temperature: float = 0.2,
     api_key: Optional[str] = None,
 ) -> AgentExecutor:
@@ -48,8 +49,9 @@ def build_frameworks_supervisor(
     )
 
     agent = create_tool_calling_agent(llm, tools, prompt)
-    return AgentExecutor(agent=agent, tools=tools, verbose=True, return_intermediate_steps=True)
+    return AgentExecutor(
+        agent=agent, tools=tools, verbose=True, return_intermediate_steps=True
+    )
 
 
 __all__ = ["build_frameworks_supervisor", "suggest_frameworks"]
-

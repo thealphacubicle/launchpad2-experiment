@@ -22,7 +22,9 @@ SYSTEM = (
 
 
 @tool("generate_process_map")
-def generate_process_map(description: str, detail: str = "concise", model: Optional[str] = None) -> str:
+def generate_process_map(
+    description: str, detail: str = "concise", model: Optional[str] = None
+) -> str:
     """Generate a Mermaid process map from a text description.
 
     - description: free text describing steps, actors, decisions.
@@ -31,7 +33,7 @@ def generate_process_map(description: str, detail: str = "concise", model: Optio
 
     Returns Mermaid code and a short summary in plain text.
     """
-    model_id = model or os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+    model_id = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     api_key = os.getenv("OPENAI_API_KEY")
     llm = ChatOpenAI(model=model_id, temperature=0.1, api_key=api_key)
 
@@ -53,4 +55,3 @@ def generate_process_map(description: str, detail: str = "concise", model: Optio
 
 
 __all__ = ["generate_process_map"]
-

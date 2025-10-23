@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain.agents import AgentExecutor
+from langchain.agents import create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langchain.tools import tool
@@ -20,45 +21,72 @@ _supervisors: Dict[str, AgentExecutor] = {}
 def _get_research(model: str, temp: float, api_key: Optional[str]) -> AgentExecutor:
     key = f"research:{model}:{temp}"
     if key not in _supervisors:
-        _supervisors[key] = build_research_supervisor(model=model, temperature=temp, api_key=api_key)
+        _supervisors[key] = build_research_supervisor(
+            model=model, temperature=temp, api_key=api_key
+        )
     return _supervisors[key]
 
 
 def _get_docs(model: str, temp: float, api_key: Optional[str]) -> AgentExecutor:
     key = f"docs:{model}:{temp}"
     if key not in _supervisors:
-        _supervisors[key] = build_documentation_supervisor(model=model, temperature=temp, api_key=api_key)
+        _supervisors[key] = build_documentation_supervisor(
+            model=model, temperature=temp, api_key=api_key
+        )
     return _supervisors[key]
 
 
 def _get_frameworks(model: str, temp: float, api_key: Optional[str]) -> AgentExecutor:
     key = f"frameworks:{model}:{temp}"
     if key not in _supervisors:
-        _supervisors[key] = build_frameworks_supervisor(model=model, temperature=temp, api_key=api_key)
+        _supervisors[key] = build_frameworks_supervisor(
+            model=model, temperature=temp, api_key=api_key
+        )
     return _supervisors[key]
 
 
 @tool("delegate_research")
-def delegate_research(input: str, model: str = "gpt-3.5-turbo", temperature: float = 0.2, api_key: Optional[str] = None) -> str:
+def delegate_research(
+    input: str,
+    model: str = "gpt-4o-mini",
+    temperature: float = 0.2,
+    api_key: Optional[str] = None,
+) -> str:
     """Route a task to the Research Supervisor. Input is the user's query."""
     exec_ = _get_research(model, temperature, api_key)
-    res: Dict[str, Any] = exec_.invoke({"input": input, "chat_history": get_chat_history()})
+    res: Dict[str, Any] = exec_.invoke(
+        {"input": input, "chat_history": get_chat_history()}
+    )
     return res.get("output", "")
 
 
 @tool("delegate_documentation")
-def delegate_documentation(input: str, model: str = "gpt-3.5-turbo", temperature: float = 0.2, api_key: Optional[str] = None) -> str:
+def delegate_documentation(
+    input: str,
+    model: str = "gpt-4o-mini",
+    temperature: float = 0.2,
+    api_key: Optional[str] = None,
+) -> str:
     """Route a task to the Documentation Supervisor. Input is the user's query."""
     exec_ = _get_docs(model, temperature, api_key)
-    res: Dict[str, Any] = exec_.invoke({"input": input, "chat_history": get_chat_history()})
+    res: Dict[str, Any] = exec_.invoke(
+        {"input": input, "chat_history": get_chat_history()}
+    )
     return res.get("output", "")
 
 
 @tool("delegate_frameworks")
-def delegate_frameworks(input: str, model: str = "gpt-3.5-turbo", temperature: float = 0.2, api_key: Optional[str] = None) -> str:
+def delegate_frameworks(
+    input: str,
+    model: str = "gpt-4o-mini",
+    temperature: float = 0.2,
+    api_key: Optional[str] = None,
+) -> str:
     """Route a task to the Frameworks Supervisor. Input is the user's query."""
     exec_ = _get_frameworks(model, temperature, api_key)
-    res: Dict[str, Any] = exec_.invoke({"input": input, "chat_history": get_chat_history()})
+    res: Dict[str, Any] = exec_.invoke(
+        {"input": input, "chat_history": get_chat_history()}
+    )
     return res.get("output", "")
 
 
@@ -72,7 +100,7 @@ SYSTEM = (
 
 
 def build_master_agent(
-    model: str = "gpt-3.5-turbo",
+    model: str = "gpt-4o-mini",
     temperature: float = 0.2,
     api_key: Optional[str] = None,
 ) -> AgentExecutor:
@@ -94,7 +122,9 @@ def build_master_agent(
     )
 
     agent = create_tool_calling_agent(llm, tools, prompt)
-    return AgentExecutor(agent=agent, tools=tools, verbose=True, return_intermediate_steps=True)
+    return AgentExecutor(
+        agent=agent, tools=tools, verbose=True, return_intermediate_steps=True
+    )
 
 
 __all__ = [

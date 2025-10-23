@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain.agents import AgentExecutor
+from langchain.agents import create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langchain.tools import tool
@@ -30,7 +31,9 @@ def get_current_time(timezone: Optional[str] = None) -> str:
     return timestamp
 
 
-def build_agent(model: str = "gpt-3.5-turbo", temperature: float = 0.2, api_key = None) -> AgentExecutor:
+def build_agent(
+    model: str = "gpt-4o-mini", temperature: float = 0.2, api_key=None
+) -> AgentExecutor:
     """Build an agent executor configured with web search and a clock tool.
 
     Args:
