@@ -5,11 +5,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain.agents import AgentExecutor
+from langchain.agents import create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 from langchain.tools import tool
-from langchain_community.tools import DuckDuckGoSearchRun
 import os
 from dotenv import load_dotenv
 
@@ -31,7 +31,9 @@ def get_current_time(timezone: Optional[str] = None) -> str:
     return timestamp
 
 
-def build_agent(model: str = "gpt-3.5-turbo", temperature: float = 0.2, api_key = None) -> AgentExecutor:
+def build_agent(
+    model: str = "gpt-4o-mini", temperature: float = 0.2, api_key=None
+) -> AgentExecutor:
     """Build an agent executor configured with web search and a clock tool.
 
     Args:
@@ -45,16 +47,15 @@ def build_agent(model: str = "gpt-3.5-turbo", temperature: float = 0.2, api_key 
     api_key = api_key or os.getenv("OPENAI_API_KEY")
     llm = ChatOpenAI(model=model, temperature=temperature, api_key=api_key)
 
-    tools = [DuckDuckGoSearchRun(name="web_search"), get_current_time]
+    tools = [get_current_time]
 
     prompt = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
-                "You are a helpful research assistant. Use the available tools to answer "
-                "questions with up-to-date facts. When search results supply the answer, "
-                "cite the source URLs in plain text. Use the clock tool to mention the "
-                "current time when it adds helpful context.",
+                "You are a helpful assistant. Use the available tools to answer "
+                "questions. Use the clock tool to mention the current time when it adds "
+                "helpful context.",
             ),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
             ("human", "{input}"),

@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any, Dict
 
-from build_agent.agent import build_agent
+from build_agent.agents.master import build_master_agent
 
 
 def parse_args() -> argparse.Namespace:
@@ -16,8 +16,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="gpt-3.5-turbo",
-        help="The OpenAI chat model to use (defaults to gpt-3.5-turbo).",
+        default="gpt-4o-mini",
+        help="The OpenAI chat model to use (defaults to gpt-4o-mini).",
     )
     parser.add_argument(
         "--temperature",
@@ -30,7 +30,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    agent = build_agent(model=args.model, temperature=args.temperature)
+    agent = build_master_agent(model=args.model, temperature=args.temperature)
     result: Dict[str, Any] = agent.invoke({"input": args.question})
 
     print("\n=== Final answer ===")
