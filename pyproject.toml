@@ -1,3 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "launchpad2-experiment"
+version = "0.1.0"
+description = "Launchpad2 experiment with build agent"
+dependencies = [
+    "langchain",
+    "langchain-community", 
+    "langchain-openai",
+    "streamlit",
+    "python-dotenv",
+    "streamlit-mermaid",
+    "mcp>=1.2",
+    "httpx>=0.27",
+    "pre-commit>=3.6",
+    "ruff>=0.5"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["build_agent*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

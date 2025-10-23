@@ -1,3 +1,6 @@
+# Install the package in editable mode
+-e .
+
 # Core dependencies
 langchain
 langchain-community
