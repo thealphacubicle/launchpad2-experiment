@@ -22,10 +22,86 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS for chat bubbles
+# Custom CSS for professional styling
 st.markdown(
     """
 <style>
+    /* Main layout improvements */
+    .main .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        max-width: 1200px;
+    }
+    
+    /* Header styling */
+    .header-container {
+        background: transparent;
+        color: white;
+        padding: 1rem 0;
+        margin: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    
+    .header-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        color: #ffffff;
+        text-align: center;
+        letter-spacing: -0.02em;
+    }
+    
+    .header-subtitle {
+        font-size: 1.1rem;
+        color: #ffffff;
+        text-align: center;
+        margin: 0.5rem 0 0 0;
+        font-weight: 400;
+    }
+    
+    /* Welcome section improvements */
+    .welcome-container {
+        background: transparent;
+        padding: 2rem 0;
+        margin: 1rem 0;
+        text-align: center;
+    }
+    
+    .welcome-title {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #ffffff;
+        margin: 0 0 1rem 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .welcome-description {
+        font-size: 1.1rem;
+        color: #ffffff;
+        margin: 0 0 1.5rem 0;
+        line-height: 1.6;
+    }
+    
+    .welcome-examples {
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
+        margin-top: 1.5rem;
+        border-left: none;
+    }
+    
+    .welcome-examples p {
+        margin: 0;
+        font-style: italic;
+        color: #ffffff;
+        font-size: 0.95rem;
+    }
+    
+    /* Chat styling improvements */
     .chat-container {
         max-width: 800px;
         margin: 0 auto;
@@ -33,32 +109,37 @@ st.markdown(
     }
     
     .user-message {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
         color: white;
-        padding: 12px 16px;
-        border-radius: 18px 18px 4px 18px;
-        margin: 8px 0;
-        margin-left: 20%;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 16px 20px;
+        border-radius: 20px 20px 6px 20px;
+        margin: 12px 0;
+        margin-left: 15%;
+        box-shadow: 0 4px 12px rgba(0,123,255,0.2);
         word-wrap: break-word;
+        font-size: 0.95rem;
+        line-height: 1.5;
     }
     
     .assistant-message {
-        background: #f8f9fa;
-        color: #333;
-        padding: 12px 16px;
-        border-radius: 18px 18px 18px 4px;
-        margin: 8px 0;
-        margin-right: 20%;
+        background: #ffffff;
+        color: #2c3e50;
+        padding: 16px 20px;
+        border-radius: 20px 20px 20px 6px;
+        margin: 12px 0;
+        margin-right: 15%;
         border: 1px solid #e9ecef;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         word-wrap: break-word;
+        font-size: 0.95rem;
+        line-height: 1.5;
     }
     
     .message-time {
         font-size: 0.75rem;
         opacity: 0.7;
-        margin-top: 4px;
+        margin-top: 6px;
+        font-weight: 500;
     }
     
     .chat-input-container {
@@ -66,25 +147,44 @@ st.markdown(
         bottom: 0;
         left: 0;
         right: 0;
-        background: white;
+        background: transparent;
         padding: 20px;
-        border-top: 1px solid #e9ecef;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        border-top: none;
+        box-shadow: none;
+        backdrop-filter: none;
     }
     
     .main-container {
-        padding-bottom: 120px;
+        padding-bottom: 0;
     }
     
-    .welcome-message {
-        text-align: center;
-        padding: 40px 20px;
-        color: #666;
+    /* Sidebar improvements */
+    .sidebar .sidebar-content {
+        background: #f8f9fa;
     }
     
-    .welcome-message h2 {
-        color: #333;
-        margin-bottom: 10px;
+    /* Button styling */
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Input styling */
+    .stTextInput > div > div > input {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        transition: border-color 0.2s ease;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
     }
 </style>
 """,
@@ -137,30 +237,44 @@ def render_message_bubble(message, is_user: bool, timestamp: str = None):
 
 # Sidebar configuration
 with st.sidebar:
-    st.header("⚙️ Configuration")
-    selected_model = st.text_input("Chat model", value="gpt-4o-mini")
-    selected_temperature = st.slider(
-        "Temperature",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.2,
-        step=0.1,
-    )
-    st.caption("The agent requires an `OPENAI_API_KEY` environment variable to be set.")
-
-    st.divider()
-
-    if st.button("🗑️ Clear conversation", type="secondary"):
-        st.session_state.chat_history = []
-        st.rerun()
-
-    st.divider()
-
+    # Master Orchestrator section at the top
     st.markdown("### 🧭 Master Orchestrator")
     st.markdown("Routes queries to specialized supervisors:")
     st.markdown("• **Research** - Boston data & web research")
     st.markdown("• **Documentation** - Process maps & docs")
     st.markdown("• **Frameworks** - Structured approaches")
+
+    st.divider()
+
+    # LLM Configuration in expander
+    with st.expander("⚙️ LLM Configuration", expanded=False):
+        st.markdown("**Chat Model**")
+        selected_model = st.selectbox(
+            "Select model",
+            options=["gpt-4o-mini"],
+            index=0,
+            label_visibility="collapsed",
+        )
+
+        selected_temperature = st.slider(
+            "Temperature",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.2,
+            step=0.1,
+        )
+        st.caption(
+            "The agent requires an `OPENAI_API_KEY` environment variable to be set."
+        )
+
+    st.divider()
+
+    # Clear conversation button with better styling
+    col1, col2 = st.columns([1, 1])
+    with col2:
+        if st.button("🗑️ Clear", type="secondary", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
 
 
 # Initialize chat history
@@ -173,9 +287,9 @@ st.markdown('<div class="main-container">', unsafe_allow_html=True)
 # Header
 st.markdown(
     """
-<div style="text-align: center; padding: 20px 0; border-bottom: 1px solid #e9ecef; margin-bottom: 20px;">
-    <h1 style="margin: 0; color: #333;">🧭 Master Orchestrator</h1>
-    <p style="margin: 5px 0 0 0; color: #666;">Your intelligent assistant for research, documentation, and frameworks</p>
+<div class="header-container">
+    <h1 class="header-title">🧭 Master Orchestrator</h1>
+    <p class="header-subtitle">Your intelligent assistant for research, documentation, and frameworks</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -190,10 +304,12 @@ if st.session_state.chat_history:
 else:
     st.markdown(
         """
-    <div class="welcome-message">
-        <h2>👋 Welcome to Master Orchestrator</h2>
-        <p>Ask me anything! I can help with research, documentation, and framework suggestions.</p>
-        <p><em>Try asking: "What data is available about Boston housing?" or "Create a process map for user onboarding"</em></p>
+    <div class="welcome-container">
+        <h2 class="welcome-title">👋 Welcome to Master Orchestrator</h2>
+        <p class="welcome-description">Ask me anything! I can help with research, documentation, and framework suggestions.</p>
+        <div class="welcome-examples">
+            <p><strong>Try asking:</strong> "What data is available about Boston housing?" or "Create a process map for user onboarding"</p>
+        </div>
     </div>
     """,
         unsafe_allow_html=True,
